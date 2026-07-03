@@ -2,1218 +2,845 @@
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>النظام المتكامل لتقييم الفراخ - ذكاء صناعي</title>
-
-<!-- مكتبات الذكاء الصناعي -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0"></script>
-<script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady()"></script>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام عد ووزن الفراخ الذكي - متكامل</title>
+<script src="https://docs.opencv.org/4.x/opencv.js"></script>
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  :root{
+    --green:#0a7d2c; --green-dark:#065a1f; --green-light:#e8f7ec;
+    --bg1:#f6fdf7; --bg2:#e9f7ee; --danger:#d32f2f; --warn:#c77c00;
   }
-  
-  body {
-    font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
-    background: linear-gradient(135deg, #f0f7f0 0%, #dce8dc 100%);
-    color: #1a3a1a;
-    text-align: center;
-    direction: rtl;
-    min-height: 100vh;
-    padding: 10px;
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Cairo","Segoe UI",Tahoma,sans-serif;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    color:#233; direction:rtl; padding:16px;
   }
-  
-  header {
-    background: linear-gradient(135deg, #2d5a1e, #4a8c3a);
-    color: white;
-    padding: 18px 10px;
-    border-radius: 15px;
-    margin-bottom: 15px;
-    box-shadow: 0 4px 15px rgba(0,50,0,0.3);
+  .wrap{max-width:760px;margin:0 auto;}
+  header{
+    background:linear-gradient(135deg,var(--green),var(--green-dark));
+    color:#fff; padding:22px 18px; border-radius:16px; text-align:center;
+    box-shadow:0 8px 24px rgba(10,125,44,.25); margin-bottom:16px;
   }
-  
-  header h1 {
-    font-size: 22px;
-    letter-spacing: 1px;
+  header h1{margin:0 0 4px;font-size:22px;}
+  header .sub{opacity:.9;font-size:13px;}
+  .card{
+    background:#fff; border-radius:16px; padding:18px; margin-bottom:16px;
+    box-shadow:0 4px 18px rgba(0,0,0,.06); border:1px solid #eef3ee;
   }
-  
-  header .sub {
-    font-size: 14px;
-    opacity: 0.9;
-    margin-top: 4px;
+  .card h2{margin:0 0 12px;font-size:17px;color:var(--green-dark);display:flex;align-items:center;gap:8px;}
+  .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .tab-btn{
+    flex:1; min-width:110px; padding:10px 8px; border-radius:10px; border:2px solid #dcecdf;
+    background:#fff; color:var(--green-dark); font-weight:700; cursor:pointer; font-size:14px;
+    transition:.2s;
   }
-  
-  .container {
-    max-width: 750px;
-    margin: 0 auto;
-    background: rgba(255,255,255,0.92);
-    border-radius: 20px;
-    padding: 20px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+  .tab-btn.active{background:var(--green); color:#fff; border-color:var(--green);}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  label{font-size:14px;font-weight:600;color:#345;}
+  input[type=number]{
+    width:110px; padding:9px 10px; border-radius:9px; border:1.5px solid #d7e5da; font-size:15px;
   }
-  
-  .mode-selector {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-    justify-content: center;
+  input[type=file]{
+    width:100%; padding:12px; border:2px dashed var(--green); border-radius:12px;
+    background:var(--green-light); cursor:pointer; font-size:14px;
   }
-  
-  .mode-selector button {
-    padding: 10px 20px;
-    border: 2px solid #4a8c3a;
-    background: white;
-    color: #2d5a1e;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.3s;
-    font-size: 14px;
+  button{
+    background:var(--green); color:#fff; border:none; padding:12px 22px; border-radius:11px;
+    font-size:16px; font-weight:700; cursor:pointer; transition:.2s; box-shadow:0 4px 12px rgba(10,125,44,.25);
   }
-  
-  .mode-selector button.active {
-    background: #4a8c3a;
-    color: white;
-    box-shadow: 0 3px 12px rgba(74,140,58,0.4);
+  button:hover{background:var(--green-dark); transform:translateY(-1px);}
+  button:disabled{background:#c8d3ca;cursor:not-allowed;box-shadow:none;transform:none;}
+  button.secondary{background:#fff;color:var(--green-dark);border:2px solid var(--green);box-shadow:none;}
+  button.danger{background:var(--danger);}
+  #preview,#videoPreview,#canvas{
+    width:100%; max-width:100%; border-radius:12px; margin-top:12px; border:2px solid #dfeee2; display:none;
   }
-  
-  .mode-selector button:hover {
-    transform: translateY(-2px);
+  #recordCanvas{display:none;}
+  .loading{display:none;align-items:center;gap:10px;justify-content:center;color:var(--green-dark);font-weight:700;margin:14px 0;}
+  .loader{width:20px;height:20px;border:3px solid #d7ecdb;border-top:3px solid var(--green);border-radius:50%;animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .result-box{
+    background:var(--green-light); border-radius:14px; padding:16px; margin-top:14px; display:none;
   }
-  
-  .upload-area {
-    border: 3px dashed #4a8c3a;
-    border-radius: 15px;
-    padding: 25px 10px;
-    margin: 10px 0;
-    background: #f8fcf8;
-    transition: all 0.3s;
+  .result-row{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px dashed #cfe6d5;font-size:15px;}
+  .result-row:last-child{border-bottom:none;}
+  .result-row .val{font-weight:800;color:var(--green-dark);font-size:17px;}
+  .final-weight{
+    text-align:center; margin-top:12px; padding:16px; background:#fff; border-radius:12px;
+    border:2px solid var(--green);
   }
-  
-  .upload-area.dragover {
-    background: #e8f5e8;
-    border-color: #2d5a1e;
+  .final-weight .num{font-size:36px;font-weight:900;color:var(--green-dark);}
+  .final-weight .label{font-size:13px;color:#567;}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;margin-inline-start:6px;}
+  .badge.ok{background:#dcf3e0;color:var(--green-dark);}
+  .badge.warn{background:#fdecc8;color:var(--warn);}
+  .status{font-size:13px;color:#678;text-align:center;margin-top:6px;}
+  .calib-note{font-size:13px;background:#fff7e0;border:1px solid #ffe4a1;padding:10px 12px;border-radius:10px;color:#7a5600;margin-top:10px;}
+  .hidden{display:none !important;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:480px){.grid2{grid-template-columns:1fr;}}
+  .history-item{
+    display:flex;justify-content:space-between;align-items:center;background:#fafdfa;
+    border:1px solid #eaf3ec;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px;
   }
-  
-  .upload-area input[type="file"] {
-    display: none;
-  }
-  
-  .upload-label {
-    display: inline-block;
-    padding: 12px 25px;
-    background: #4a8c3a;
-    color: white;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.3s;
-  }
-  
-  .upload-label:hover {
-    background: #2d5a1e;
-    transform: scale(1.02);
-  }
-  
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
-    align-items: center;
-    margin: 15px 0;
-  }
-  
-  .controls label {
-    font-weight: bold;
-    color: #2d5a1e;
-  }
-  
-  .controls input[type="number"] {
-    width: 80px;
-    padding: 8px;
-    border: 2px solid #4a8c3a;
-    border-radius: 8px;
-    font-size: 16px;
-    text-align: center;
-  }
-  
-  .btn-analyze {
-    background: linear-gradient(135deg, #ff6b35, #e85d1a);
-    color: white;
-    border: none;
-    padding: 12px 35px;
-    border-radius: 12px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 4px 15px rgba(232,93,26,0.3);
-  }
-  
-  .btn-analyze:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 25px rgba(232,93,26,0.4);
-  }
-  
-  .btn-analyze:disabled {
-    background: #aaa;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-  
-  .btn-analyze:active:not(:disabled) {
-    transform: scale(0.95);
-  }
-  
-  #canvas {
-    width: 100%;
-    max-height: 400px;
-    border-radius: 12px;
-    border: 3px solid #4a8c3a;
-    margin: 12px 0;
-    background: #1a1a1a;
-    object-fit: contain;
-  }
-  
-  .video-container {
-    position: relative;
-    width: 100%;
-    border-radius: 12px;
-    overflow: hidden;
-    margin: 10px 0;
-  }
-  
-  #videoElement {
-    width: 100%;
-    max-height: 400px;
-    background: #1a1a1a;
-    border-radius: 12px;
-    border: 3px solid #4a8c3a;
-  }
-  
-  .video-controls {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin: 10px 0;
-  }
-  
-  .video-controls button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 10px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-size: 14px;
-  }
-  
-  .btn-start-cam {
-    background: #2196F3;
-    color: white;
-  }
-  
-  .btn-start-cam:hover {
-    background: #0b7ad1;
-  }
-  
-  .btn-stop-cam {
-    background: #f44336;
-    color: white;
-  }
-  
-  .btn-stop-cam:hover {
-    background: #d32f2f;
-  }
-  
-  .btn-capture {
-    background: #4a8c3a;
-    color: white;
-  }
-  
-  .btn-capture:hover {
-    background: #2d5a1e;
-  }
-  
-  #result {
-    background: #f1f9f3;
-    border-radius: 15px;
-    padding: 20px;
-    margin-top: 15px;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
-  }
-  
-  .result-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    margin: 10px 0;
-  }
-  
-  .result-item {
-    background: white;
-    padding: 12px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  }
-  
-  .result-item .label {
-    font-size: 12px;
-    color: #666;
-    font-weight: bold;
-  }
-  
-  .result-item .value {
-    font-size: 28px;
-    font-weight: bold;
-    color: #2d5a1e;
-  }
-  
-  .result-item .value.gold {
-    color: #f5a623;
-  }
-  
-  .calibration-section {
-    background: #fff8e1;
-    border-radius: 12px;
-    padding: 15px;
-    margin-top: 15px;
-    border: 2px solid #ffd54f;
-  }
-  
-  .calibration-section h4 {
-    color: #e65100;
-    margin-bottom: 10px;
-  }
-  
-  .calibration-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .calibration-controls input {
-    width: 120px;
-    padding: 8px;
-    border: 2px solid #ffd54f;
-    border-radius: 8px;
-    text-align: center;
-    font-size: 16px;
-  }
-  
-  .calibration-controls button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-  
-  .btn-save-cal {
-    background: #4caf50;
-    color: white;
-  }
-  
-  .btn-reset-cal {
-    background: #ff9800;
-    color: white;
-  }
-  
-  .btn-clear-cal {
-    background: #f44336;
-    color: white;
-  }
-  
-  .progress-bar {
-    width: 100%;
-    height: 6px;
-    background: #e0e0e0;
-    border-radius: 3px;
-    margin: 10px 0;
-    overflow: hidden;
-    display: none;
-  }
-  
-  .progress-bar .fill {
-    height: 100%;
-    background: linear-gradient(90deg, #4a8c3a, #8bc34a);
-    width: 0%;
-    transition: width 0.3s;
-    border-radius: 3px;
-  }
-  
-  .status-msg {
-    padding: 8px 12px;
-    border-radius: 8px;
-    margin: 8px 0;
-    font-weight: bold;
-    font-size: 14px;
-  }
-  
-  .status-msg.success {
-    background: #e8f5e9;
-    color: #2e7d32;
-  }
-  
-  .status-msg.error {
-    background: #ffebee;
-    color: #c62828;
-  }
-  
-  .status-msg.info {
-    background: #e3f2fd;
-    color: #0d47a1;
-  }
-  
-  .footer {
-    margin-top: 20px;
-    padding: 12px;
-    background: #2d5a1e;
-    color: white;
-    border-radius: 12px;
-    font-size: 13px;
-  }
-  
-  .footer a {
-    color: #8bc34a;
-    text-decoration: none;
-    font-weight: bold;
-  }
-  
-  @media (max-width: 500px) {
-    .result-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-    header h1 { font-size: 18px; }
-    .container { padding: 12px; }
-    .controls { flex-direction: column; }
-  }
-  
-  /* تحسينات للكاميرا */
-  .camera-overlay {
-    position: relative;
-  }
-  
-  .frame-counter {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.7);
-    color: white;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 14px;
-    z-index: 10;
-  }
-  
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-  
-  .recording-indicator {
-    display: none;
-    color: #f44336;
-    font-weight: bold;
-    animation: pulse 1s infinite;
-  }
+  .history-item button{padding:5px 10px;font-size:12px;background:var(--danger);box-shadow:none;}
+  footer{text-align:center;color:#789;font-size:13px;margin-top:18px;padding:14px;}
+  footer a{color:var(--green-dark);font-weight:700;text-decoration:none;}
+  .frame-strip{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding:4px 0;}
+  .frame-strip img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:2px solid #dfeee2;flex-shrink:0;}
+  .progress-bar{width:100%;height:8px;background:#e5f0e7;border-radius:6px;overflow:hidden;margin-top:8px;display:none;}
+  .progress-fill{height:100%;background:var(--green);width:0%;transition:width .2s;}
+  details{margin-top:10px;}
+  summary{cursor:pointer;font-weight:700;color:var(--green-dark);font-size:14px;}
 </style>
 </head>
 <body>
+<div class="wrap">
 
 <header>
-  <h1>🐔 النظام المتكامل لتقييم الفراخ</h1>
-  <div class="sub">ذكاء صناعي | عداد + وزن | م. عبدالله عزوز | 📞 01119935714</div>
+  <h1>🐔 نظام عد ووزن الفراخ الذكي</h1>
+  <div class="sub">دمج الرؤية بالذكاء الاصطناعي + تحليل البكسل + معايرة يدوية</div>
+  <div class="sub">م. عبدالله عزوز — 01119935714</div>
 </header>
 
-<div class="container">
-  
-  <!-- اختيار الوضع -->
-  <div class="mode-selector">
-    <button class="active" data-mode="image" onclick="setMode('image')">📸 صورة</button>
-    <button data-mode="video" onclick="setMode('video')">🎥 فيديو مباشر</button>
+<!-- ====== وضع الإدخال ====== -->
+<div class="card">
+  <h2>📥 اختر طريقة الإدخال</h2>
+  <div class="tabs">
+    <button class="tab-btn active" data-mode="image">📷 صورة</button>
+    <button class="tab-btn" data-mode="video">🎥 فيديو (15 ثانية)</button>
+    <button class="tab-btn" data-mode="calib">⚖️ المعايرة</button>
+    <button class="tab-btn" data-mode="history">📊 السجل</button>
   </div>
-  
-  <!-- منطقة رفع الملفات -->
-  <div class="upload-area" id="uploadArea">
-    <p style="color:#2d5a1e; font-weight:bold;">📤 اسحب الصورة هنا أو اضغط للاختيار</p>
-    <label class="upload-label" id="uploadLabel">
-      📁 اختر صورة
-      <input type="file" id="fileInput" accept="image/*">
-    </label>
-    <p style="font-size:12px; color:#888; margin-top:8px;">يدعم: JPG, PNG, WebP</p>
-  </div>
-  
-  <!-- منطقة الفيديو -->
-  <div class="video-container" id="videoContainer" style="display:none;">
-    <video id="videoElement" autoplay playsinline></video>
-    <div class="video-controls">
-      <button class="btn-start-cam" onclick="startCamera()">📷 تشغيل الكاميرا</button>
-      <button class="btn-stop-cam" onclick="stopCamera()">⏹ إيقاف</button>
-      <button class="btn-capture" onclick="captureFrame()">📸 تحليل الآن</button>
-      <button class="btn-capture" onclick="startRecording()">⏺ تسجيل 15 ثانية</button>
-      <span class="recording-indicator" id="recordingIndicator">🔴 جاري التسجيل...</span>
+
+  <!-- --- صورة --- -->
+  <div id="panel-image">
+    <input type="file" id="imageInput" accept="image/*" capture="environment">
+    <img id="preview" alt="معاينة">
+    <div class="row" style="margin-top:12px;">
+      <label>📏 ارتفاع الكاميرا (سم):</label>
+      <input type="number" id="heightInputImg" value="100" min="20" max="300">
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button id="analyzeImgBtn" disabled>🔍 حلّل الصورة</button>
     </div>
   </div>
-  
-  <!-- الضوابط -->
-  <div class="controls">
-    <label>📏 الارتفاع (سم):</label>
-    <input type="number" id="heightInput" value="100" min="20" max="300">
-    <button class="btn-analyze" id="analyzeBtn" onclick="analyzeImage()">🔍 تحليل</button>
-  </div>
-  
-  <!-- شريط التقدم -->
-  <div class="progress-bar" id="progressBar">
-    <div class="fill" id="progressFill"></div>
-  </div>
-  
-  <!-- Canvas للعرض -->
-  <canvas id="canvas"></canvas>
-  
-  <!-- النتائج -->
-  <div id="result">
-    <div style="color:#888;">⏳ انتظر رفع صورة أو تشغيل الكاميرا للتحليل</div>
-  </div>
-  
-  <!-- قسم المعايرة -->
-  <div class="calibration-section">
-    <h4>⚙️ معايرة الوزن</h4>
-    <div class="calibration-controls">
-      <label>قيمة المعايرة (جم):</label>
-      <input type="number" id="calibrationValue" value="0" step="10">
-      <button class="btn-save-cal" onclick="saveCalibration()">💾 حفظ</button>
-      <button class="btn-reset-cal" onclick="resetCalibration()">🔄 إعادة تعيين</button>
-      <button class="btn-clear-cal" onclick="clearCalibration()">🗑 حذف</button>
+
+  <!-- --- فيديو --- -->
+  <div id="panel-video" class="hidden">
+    <div class="row" style="margin-bottom:10px;">
+      <button id="startCamBtn">🎬 تشغيل الكاميرا</button>
+      <button id="recordBtn" disabled class="secondary">⏺️ تسجيل 15 ثانية</button>
     </div>
-    <div id="calibrationStatus" style="font-size:13px; color:#666; margin-top:8px;"></div>
+    <video id="liveVideo" style="width:100%;border-radius:12px;display:none;border:2px solid #dfeee2;" playsinline muted autoplay></video>
+    <canvas id="recordCanvas"></canvas>
+    <div class="progress-bar" id="recProgressWrap"><div class="progress-fill" id="recProgress"></div></div>
+    <div class="status" id="recStatus"></div>
+    <div class="row" style="margin-top:12px;">
+      <label>📏 ارتفاع الكاميرا (سم):</label>
+      <input type="number" id="heightInputVid" value="100" min="20" max="300">
+    </div>
+    <div class="frame-strip" id="frameStrip"></div>
+    <div class="row" style="margin-top:10px;">
+      <button id="analyzeVidBtn" disabled>🔍 حلّل أفضل اللقطات</button>
+    </div>
+    <details>
+      <summary>ℹ️ كيف يعمل تحليل الفيديو؟</summary>
+      <div class="calib-note">
+        يتم أخذ 6 لقطات موزعة من الفيديو (كل ~2.5 ثانية)، وتحليل كل لقطة بنفس طريقة الصورة الواحدة،
+        ثم أخذ المتوسط (Median) للنتائج لتقليل تأثير الحركة أو التشويش في أي لقطة منفردة.
+        هذا أدق من الاعتماد على صورة واحدة فقط.
+      </div>
+    </details>
   </div>
-  
-  <!-- حالة النظام -->
-  <div id="systemStatus" class="status-msg info">🔄 جاري تحميل النماذج...</div>
-  
-  <div class="footer">
-    🧠 تصميم وبرمجة: <strong>م. عبد الله عزوز</strong> | 
-    📞 <a href="https://wa.me/201119935714" target="_blank">01119935714</a> |
-    🌐 <a href="#" onclick="clearAllData()">مسح البيانات</a>
+
+  <!-- --- المعايرة --- -->
+  <div id="panel-calib" class="hidden">
+    <div class="calib-note">
+      إذا كانت النتيجة المحسوبة تختلف عن الوزن الحقيقي (الميزان)، أدخل الفرق هنا.
+      مثال: لو الكود قال 2.000 كجم والوزن الفعلي 2.300 كجم، أدخل +300 جم.
+      سيتم حفظ هذه القيمة وتطبيقها تلقائياً على كل النتائج القادمة.
+    </div>
+    <div class="grid2" style="margin-top:12px;">
+      <div>
+        <label>وزن الميزان الفعلي (كجم)</label><br>
+        <input type="number" id="actualWeightInput" step="0.001" placeholder="مثال: 2.300" style="width:100%;">
+      </div>
+      <div>
+        <label>وزن الكود قبل المعايرة (كجم)</label><br>
+        <input type="number" id="predictedWeightInput" step="0.001" placeholder="مثال: 2.000" style="width:100%;">
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <button id="calcCalibBtn">➕ احسب واحفظ المعايرة</button>
+      <button id="resetCalibBtn" class="danger">🗑️ إعادة تصفير المعايرة</button>
+    </div>
+    <div class="result-box" id="calibResultBox" style="display:block;margin-top:14px;">
+      <div class="result-row">
+        <span>قيمة المعايرة الحالية (Offset)</span>
+        <span class="val" id="currentOffsetVal">0.000 كجم</span>
+      </div>
+      <div class="result-row">
+        <span>نسبة التصحيح (Factor)</span>
+        <span class="val" id="currentFactorVal">×1.000</span>
+      </div>
+    </div>
+    <details>
+      <summary>ℹ️ الفرق بين Offset و Factor</summary>
+      <div class="calib-note">
+        <b>Offset (إضافة/طرح ثابت):</b> مناسب لو الفرق ثابت في كل الأوزان (مثلاً دائماً ناقص 300 جم).<br>
+        <b>Factor (نسبة مئوية):</b> مناسب لو الفرق يكبر مع وزن الطائر (مثلاً كل الأوزان أقل بـ 15%).<br>
+        النظام يحسب الاثنين تلقائياً من أول عملية معايرة، ويمكنك عمل عدة معايرات لتحسين الدقة (متوسط تراكمي).
+      </div>
+    </details>
+  </div>
+
+  <!-- --- السجل --- -->
+  <div id="panel-history" class="hidden">
+    <div id="historyList"></div>
+    <div class="row" style="margin-top:10px;">
+      <button id="clearHistoryBtn" class="danger">🗑️ مسح كل السجل</button>
+    </div>
   </div>
 </div>
 
+<!-- ====== حالة المعالجة ====== -->
+<div class="loading" id="loadingBox">
+  <div class="loader"></div><span id="loadingText">جاري التحليل...</span>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<!-- ====== النتائج ====== -->
+<div class="card result-box" id="resultBox">
+  <h2>📊 نتائج التحليل</h2>
+
+  <div class="result-row">
+    <span>🤖 عدد الطيور (نموذج AI - Roboflow)</span>
+    <span class="val" id="countAI">—</span>
+  </div>
+  <div class="result-row">
+    <span>👁️ عدد الطيور (تحليل الكنتور/البكسل)</span>
+    <span class="val" id="countPixel">—</span>
+  </div>
+  <div class="result-row">
+    <span>✅ العدد النهائي المعتمد (متوسط الطريقتين)</span>
+    <span class="val" id="countFinal">—</span>
+    <span class="badge" id="countAgreeBadge"></span>
+  </div>
+
+  <div class="final-weight">
+    <div class="num" id="weightFinal">— كجم</div>
+    <div class="label">الوزن الكلي التقديري بعد المعايرة</div>
+    <div class="status" id="weightRawStatus"></div>
+  </div>
+
+  <div class="result-row" style="margin-top:10px;">
+    <span>⚖️ متوسط وزن الطائر الواحد</span>
+    <span class="val" id="avgWeightPerBird">—</span>
+  </div>
+
+  <div class="row" style="margin-top:14px;">
+    <button id="saveHistoryBtn" class="secondary">💾 حفظ هذه النتيجة في السجل</button>
+    <button id="useForCalibBtn" class="secondary">⚖️ استخدم هذه النتيجة للمعايرة</button>
+  </div>
+</div>
+
+<footer>
+  🧠 تصميم وبرمجة: <strong>م. عبدالله عزوز</strong><br>
+  💬 <a href="https://wa.me/201119935714" target="_blank">تواصل واتساب</a>
+</footer>
+
+</div>
+
 <script>
-// ============================================================
-//  إعدادات عامة
-// ============================================================
-const PIXEL_TO_WEIGHT = 0.00005;
-const DEFAULT_HEIGHT = 100;
-const RECORDING_DURATION = 15; // ثانية
+/* =========================================================
+   إعدادات عامة
+   ========================================================= */
+const PROXY_URL   = 'https://red-pond-7873reboflowproxy.2008a2008as.workers.dev';
+const TARGET_API  = 'https://serverless.roboflow.com/poultrycounterazouz/workflows/detect-count-and-visualize';
+const API_KEY      = "XE4MvnlqbKziC4aahMKI";
 
-let bodyPixNet = null;
-let cvReady = false;
-let currentMode = 'image';
-let videoStream = null;
-let isRecording = false;
-let recordingFrames = [];
-let recordingTimer = null;
-let analysisResults = [];
-let isAnalyzing = false;
+const DEFAULT_HEIGHT = 100;       // سم - ارتفاع مرجعي أثناء المعايرة الأصلية
+// معامل تحويل بكسل->كجم أساسي (سيُصحَّح بمعايرة المستخدم لاحقاً)
+let PIXEL_TO_WEIGHT_BASE = 0.00005;
 
-// ============================================================
-//  إدارة المعايرة (LocalStorage)
-// ============================================================
-function getCalibration() {
-  try {
-    const val = localStorage.getItem('chickenCalibration');
-    return val ? parseFloat(val) : 0;
-  } catch { return 0; }
+const LS_KEYS = {
+  offset: 'chicken_calib_offset_kg',
+  factor: 'chicken_calib_factor',
+  history: 'chicken_weight_history',
+  calibSamples: 'chicken_calib_samples'
+};
+
+/* =========================================================
+   أدوات التخزين المحلي (Local Storage)
+   ========================================================= */
+function getOffset(){ return parseFloat(localStorage.getItem(LS_KEYS.offset) || '0'); }
+function getFactor(){ return parseFloat(localStorage.getItem(LS_KEYS.factor) || '1'); }
+function setCalib(offset, factor){
+  localStorage.setItem(LS_KEYS.offset, offset);
+  localStorage.setItem(LS_KEYS.factor, factor);
+  renderCalibValues();
+}
+function getCalibSamples(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEYS.calibSamples) || '[]'); }catch(e){ return []; }
+}
+function addCalibSample(actual, predicted){
+  const samples = getCalibSamples();
+  samples.push({actual, predicted, ts: Date.now()});
+  localStorage.setItem(LS_KEYS.calibSamples, JSON.stringify(samples));
+  return samples;
+}
+function getHistory(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEYS.history) || '[]'); }catch(e){ return []; }
+}
+function saveHistoryEntry(entry){
+  const h = getHistory();
+  h.unshift(entry);
+  localStorage.setItem(LS_KEYS.history, JSON.stringify(h.slice(0,100)));
+  renderHistory();
+}
+function clearHistory(){
+  localStorage.removeItem(LS_KEYS.history);
+  renderHistory();
 }
 
-function saveCalibration() {
-  const val = parseFloat(document.getElementById('calibrationValue').value) || 0;
-  localStorage.setItem('chickenCalibration', val);
-  document.getElementById('calibrationStatus').textContent = `✅ تم حفظ المعايرة: ${val > 0 ? '+' : ''}${val} جم`;
-  updateCalibrationDisplay();
+/* =========================================================
+   منطق المعايرة: نحسب Offset ثابت + Factor نسبي
+   بأسلوب "أقل مربعات" بسيط عبر متوسط تراكمي لعدة عينات
+   actual = predicted * factor + offset  (نحل عليه)
+   ========================================================= */
+function recalcCalibrationFromSamples(){
+  const samples = getCalibSamples();
+  if(samples.length === 0){ setCalib(0,1); return; }
+
+  if(samples.length === 1){
+    const s = samples[0];
+    const diff = s.actual - s.predicted;
+    // عينة واحدة: نستخدم offset فقط (أكثر أماناً من افتراض factor من نقطة واحدة)
+    setCalib(diff, 1);
+    return;
+  }
+
+  // انحدار خطي بسيط (least squares) على actual = a*predicted + b
+  const n = samples.length;
+  let sumX=0,sumY=0,sumXY=0,sumXX=0;
+  samples.forEach(s=>{
+    sumX+=s.predicted; sumY+=s.actual;
+    sumXY+=s.predicted*s.actual; sumXX+=s.predicted*s.predicted;
+  });
+  const denom = (n*sumXX - sumX*sumX);
+  let a=1,b=0;
+  if(Math.abs(denom) > 1e-9){
+    a = (n*sumXY - sumX*sumY) / denom;
+    b = (sumY - a*sumX) / n;
+  }else{
+    b = (sumY/n) - (sumX/n); // fallback offset only
+  }
+  // حماية من قيم غريبة (لو عينة شاذة قلبت المعامل)
+  if(a <= 0 || a > 3) a = 1;
+  setCalib(b, a);
 }
 
-function resetCalibration() {
-  localStorage.setItem('chickenCalibration', '0');
-  document.getElementById('calibrationValue').value = '0';
-  document.getElementById('calibrationStatus').textContent = '🔄 تم إعادة تعيين المعايرة إلى 0';
-  updateCalibrationDisplay();
+function applyCalibration(rawWeightKg){
+  const offset = getOffset();
+  const factor = getFactor();
+  let calibrated = rawWeightKg * factor + offset;
+  if(calibrated < 0) calibrated = 0;
+  return calibrated;
 }
 
-function clearCalibration() {
-  localStorage.removeItem('chickenCalibration');
-  document.getElementById('calibrationValue').value = '0';
-  document.getElementById('calibrationStatus').textContent = '🗑 تم حذف المعايرة';
-  updateCalibrationDisplay();
+function renderCalibValues(){
+  document.getElementById('currentOffsetVal').textContent =
+    (getOffset()>=0?'+':'') + getOffset().toFixed(3) + ' كجم';
+  document.getElementById('currentFactorVal').textContent = '×' + getFactor().toFixed(3);
 }
 
-function updateCalibrationDisplay() {
-  const val = getCalibration();
-  document.getElementById('calibrationValue').value = val;
-}
+/* =========================================================
+   التبويبات
+   ========================================================= */
+const panels = { image:'panel-image', video:'panel-video', calib:'panel-calib', history:'panel-history' };
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    Object.values(panels).forEach(id=>document.getElementById(id).classList.add('hidden'));
+    document.getElementById(panels[btn.dataset.mode]).classList.remove('hidden');
+    if(btn.dataset.mode==='history') renderHistory();
+    if(btn.dataset.mode==='calib') renderCalibValues();
+  });
+});
 
-// ============================================================
-//  تحميل النماذج
-// ============================================================
-async function loadModels() {
-  try {
-    document.getElementById('systemStatus').textContent = '⏳ جاري تحميل نموذج BodyPix...';
-    bodyPixNet = await bodyPix.load({
-      architecture: 'MobileNetV1',
-      outputStride: 16,
-      multiplier: 0.75,
-      quantBytes: 2
+/* =========================================================
+   الاتصال بـ Roboflow عبر الـ Proxy (عدّ AI)
+   ========================================================= */
+async function callRoboflowViaProxy(base64Image){
+  try{
+    const response = await fetch(PROXY_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        targetUrl: TARGET_API,
+        apiKey: API_KEY,
+        inputs: { image: { type:"base64", value: base64Image } }
+      })
     });
-    document.getElementById('systemStatus').textContent = '✅ تم تحميل النماذج بنجاح';
-    document.getElementById('systemStatus').className = 'status-msg success';
-  } catch (err) {
-    console.error('Error loading models:', err);
-    document.getElementById('systemStatus').textContent = '❌ فشل تحميل النماذج: ' + err.message;
-    document.getElementById('systemStatus').className = 'status-msg error';
+    const result = await response.json();
+    if(result.success && result.data){
+      return { ok:true, data:result.data };
+    }
+    throw new Error(result.error || 'فشل تحليل الصورة عبر AI');
+  }catch(err){
+    console.error('Roboflow proxy error:', err);
+    return { ok:false, error: err.message };
   }
 }
 
-function onOpenCvReady() {
-  cvReady = true;
-  console.log('OpenCV ready');
+function extractAICount(result){
+  if(result?.outputs?.[0]?.count_objects !== undefined) return result.outputs[0].count_objects;
+  if(result?.count_objects !== undefined) return result.count_objects;
+  if(result?.outputs?.[0]?.predictions?.length) return result.outputs[0].predictions.length;
+  if(result?.predictions?.length) return result.predictions.length;
+  return 0;
+}
+function extractOutputImageUrl(result){
+  return result?.outputs?.[0]?.output_image?.url || result?.output_image?.url || null;
 }
 
-// ============================================================
-//  إدارة الوضع
-// ============================================================
-function setMode(mode) {
-  currentMode = mode;
-  document.querySelectorAll('.mode-selector button').forEach(b => b.classList.remove('active'));
-  document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
-  
-  if (mode === 'image') {
-    document.getElementById('uploadArea').style.display = 'block';
-    document.getElementById('videoContainer').style.display = 'none';
-    stopCamera();
+/* =========================================================
+   محرك تحليل البكسل المطوَّر (بدون BodyPix - أسرع وأدق للدواجن)
+   يستخدم OpenCV مباشرة:
+   1) تحويل لـ HSV لعزل درجات اللون الفاتح (ريش الفراخ الأبيض) بمرونة أكبر من threshold ثابت
+   2) عمليات مورفولوجية للتنظيف
+   3) Watershed / Contour + فلترة بالمساحة لفصل الطيور المتلاصقة قدر الإمكان
+   4) حساب مساحة كل طائر بالبكسل ثم تحويلها لوزن تقديري عبر معادلة غير خطية
+      (الوزن يتناسب تقريباً مع مساحة الإسقاط^1.5 وليس خطياً - أقرب للواقع البيولوجي)
+   ========================================================= */
+function analyzeFramePixels(canvasEl, heightCm){
+  let src = cv.imread(canvasEl);
+  let hsv = new cv.Mat();
+  cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB);
+  cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
+
+  // نطاق مرن لعزل الريش الفاتح (أبيض/كريمي) - يعمل تحت إضاءة عادية
+  let low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 0, 120, 0]);
+  let high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [180, 70, 255, 255]);
+  let mask = new cv.Mat();
+  cv.inRange(hsv, low, high, mask);
+
+  // تنظيف مورفولوجي: إزالة نقاط الضوضاء ثم لأم الفجوات الصغيرة
+  let kernelSmall = cv.Mat.ones(3,3,cv.CV_8U);
+  let kernelBig = cv.Mat.ones(9,9,cv.CV_8U);
+  cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernelSmall);
+  cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernelBig);
+
+  // Distance Transform لمحاولة فصل الطيور المتلاصقة (بديل خفيف عن watershed كامل)
+  let dist = new cv.Mat();
+  cv.distanceTransform(mask, dist, cv.DIST_L2, 5);
+  let distNorm = new cv.Mat();
+  cv.normalize(dist, distNorm, 0, 255, cv.NORM_MINMAX);
+  distNorm.convertTo(distNorm, cv.CV_8U);
+  let peaks = new cv.Mat();
+  cv.threshold(distNorm, peaks, 60, 255, cv.THRESH_BINARY);
+
+  let contours = new cv.MatVector();
+  let hierarchy = new cv.Mat();
+  cv.findContours(peaks, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+  const frameArea = src.rows * src.cols;
+  const minAreaPx = frameArea * 0.0015; // فلترة الكيانات الصغيرة جداً (ضوضاء)
+  const maxSingleBirdPx = frameArea * 0.35; // لو منطقة أكبر من كده على الأغلب طيرين ملتصقين
+
+  let birdAreas = [];
+  for(let i=0;i<contours.size();i++){
+    let area = cv.contourArea(contours.get(i));
+    if(area < minAreaPx) continue;
+    if(area > maxSingleBirdPx){
+      // تقدير عدد الطيور المتلاصقة داخل هذه الكتلة بقسمة تقريبية
+      const estBirds = Math.max(1, Math.round(area / (frameArea*0.09)));
+      for(let k=0;k<estBirds;k++) birdAreas.push(area/estBirds);
+    } else {
+      birdAreas.push(area);
+    }
+  }
+
+  // لو الفصل بالـ peaks فشل (صورة مزدحمة جداً) نرجع لـ mask الأصلي كخطة بديلة
+  if(birdAreas.length === 0){
+    let contours2 = new cv.MatVector();
+    let hierarchy2 = new cv.Mat();
+    cv.findContours(mask, contours2, hierarchy2, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    for(let i=0;i<contours2.size();i++){
+      let area = cv.contourArea(contours2.get(i));
+      if(area >= minAreaPx) birdAreas.push(area);
+    }
+    contours2.delete(); hierarchy2.delete();
+  }
+
+  // تصحيح المقياس حسب ارتفاع الكاميرا (كلما زاد الارتفاع صغر حجم الطائر بالبكسل بشكل تربيعي تقريبًا)
+  const scaleCorrection = Math.pow(heightCm / DEFAULT_HEIGHT, 2);
+
+  // معادلة وزن غير خطية: الوزن يتناسب مع (المساحة المصححة)^1.5 بدل علاقة خطية بسيطة
+  // هذا يعكس أن زيادة المساحة الظاهرة للطائر الأكبر ترافقها زيادة أكبر نسبياً في الكتلة (حجم/كتلة وليس مساحة/كتلة)
+  let totalWeight = 0;
+  birdAreas.forEach(areaPx=>{
+    const correctedArea = areaPx * scaleCorrection;
+    const w = PIXEL_TO_WEIGHT_BASE * Math.pow(correctedArea, 1.15); // أس >1 يعكس العلاقة الحجمية
+    totalWeight += w;
+  });
+
+  const result = {
+    count: birdAreas.length,
+    totalWeightKg: totalWeight,
+    annotatedCanvasMat: src.clone(),
+    mask
+  };
+
+  // رسم الكنتورات على الصورة الأصلية للعرض
+  for(let i=0;i<contours.size();i++){
+    let area = cv.contourArea(contours.get(i));
+    if(area >= minAreaPx) cv.drawContours(src, contours, i, [0,255,0,255], 3);
+  }
+  cv.imshow(canvasEl, src);
+
+  src.delete(); hsv.delete(); low.delete(); high.delete(); mask.delete();
+  kernelSmall.delete(); kernelBig.delete(); dist.delete(); distNorm.delete();
+  peaks.delete(); contours.delete(); hierarchy.delete();
+  result.annotatedCanvasMat.delete();
+
+  return { count: result.count, totalWeightKg: result.totalWeightKg };
+}
+
+/* =========================================================
+   دمج نتيجة AI (عدد فقط) مع نتيجة البكسل (عدد + وزن)
+   ========================================================= */
+function combineResults(aiCount, pixelCount, pixelWeightKg){
+  let finalCount;
+  let agree = false;
+  if(aiCount > 0 && pixelCount > 0){
+    finalCount = Math.round((aiCount + pixelCount) / 2);
+    agree = Math.abs(aiCount - pixelCount) <= Math.max(1, Math.round(aiCount*0.15));
+  } else if(aiCount > 0){
+    finalCount = aiCount;
   } else {
-    document.getElementById('uploadArea').style.display = 'none';
-    document.getElementById('videoContainer').style.display = 'block';
+    finalCount = pixelCount;
   }
+
+  const rawWeight = pixelWeightKg; // مصدر الوزن الوحيد هو تحليل البكسل
+  const calibratedWeight = applyCalibration(rawWeight);
+  const avgPerBird = finalCount > 0 ? calibratedWeight / finalCount : 0;
+
+  return { finalCount, agree, rawWeight, calibratedWeight, avgPerBird };
 }
 
-// ============================================================
-//  رفع الصورة
-// ============================================================
-document.getElementById('fileInput').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  
+function displayResults(aiCount, pixelCount, pixelWeightKg){
+  const combo = combineResults(aiCount, pixelCount, pixelWeightKg);
+
+  document.getElementById('countAI').textContent = aiCount > 0 ? aiCount : 'غير متاح';
+  document.getElementById('countPixel').textContent = pixelCount;
+  document.getElementById('countFinal').textContent = combo.finalCount;
+
+  const badge = document.getElementById('countAgreeBadge');
+  if(aiCount > 0 && pixelCount > 0){
+    badge.textContent = combo.agree ? '✅ توافق جيد' : '⚠️ فرق كبير بين الطريقتين';
+    badge.className = 'badge ' + (combo.agree ? 'ok' : 'warn');
+  } else {
+    badge.textContent = '';
+  }
+
+  document.getElementById('weightFinal').textContent = combo.calibratedWeight.toFixed(3) + ' كجم';
+  document.getElementById('weightRawStatus').textContent =
+    `القيمة قبل المعايرة: ${combo.rawWeight.toFixed(3)} كجم | المعايرة المطبّقة: ${getOffset()>=0?'+':''}${getOffset().toFixed(3)} كجم، ×${getFactor().toFixed(3)}`;
+  document.getElementById('avgWeightPerBird').textContent = combo.avgPerBird.toFixed(3) + ' كجم/طائر';
+
+  document.getElementById('resultBox').style.display = 'block';
+
+  // حفظ آخر نتيجة لاستخدامها في المعايرة أو السجل
+  window.__lastResult = {
+    aiCount, pixelCount, finalCount: combo.finalCount,
+    rawWeight: combo.rawWeight, calibratedWeight: combo.calibratedWeight,
+    avgPerBird: combo.avgPerBird, ts: Date.now()
+  };
+}
+
+/* =========================================================
+   وضع الصورة الواحدة
+   ========================================================= */
+const imageInput = document.getElementById('imageInput');
+const preview = document.getElementById('preview');
+const analyzeImgBtn = document.getElementById('analyzeImgBtn');
+let currentImageBase64 = null;
+let currentImg = null;
+
+imageInput.addEventListener('change', ()=>{
+  const file = imageInput.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ alert('يرجى اختيار صورة صالحة'); return; }
   const reader = new FileReader();
-  reader.onload = function(ev) {
+  reader.onload = (e)=>{
+    currentImageBase64 = e.target.result.split(',')[1];
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    analyzeImgBtn.disabled = false;
     const img = new Image();
-    img.onload = function() {
-      const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      document.getElementById('result').innerHTML = '✅ الصورة جاهزة للتحليل. اضغط "تحليل"';
-      document.getElementById('result').className = 'status-msg info';
-    };
-    img.src = ev.target.result;
+    img.onload = ()=>{ currentImg = img; };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 });
 
-// ============================================================
-//  إدارة الكاميرا
-// ============================================================
-async function startCamera() {
-  try {
-    const constraints = {
-      video: {
-        facingMode: 'environment',
-        width: { ideal: 640 },
-        height: { ideal: 480 }
-      }
-    };
-    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-    document.getElementById('videoElement').srcObject = videoStream;
-    document.getElementById('videoElement').play();
-    document.getElementById('systemStatus').textContent = '📷 الكاميرا تعمل';
-    document.getElementById('systemStatus').className = 'status-msg success';
-  } catch (err) {
-    console.error('Camera error:', err);
-    document.getElementById('systemStatus').textContent = '❌ لا يمكن الوصول للكاميرا: ' + err.message;
-    document.getElementById('systemStatus').className = 'status-msg error';
-  }
-}
+analyzeImgBtn.addEventListener('click', async ()=>{
+  if(!currentImageBase64 || !currentImg) return;
+  setLoading(true, 'جاري التحليل بالذكاء الاصطناعي وتحليل البكسل...');
+  document.getElementById('resultBox').style.display = 'none';
 
-function stopCamera() {
-  if (videoStream) {
-    videoStream.getTracks().forEach(t => t.stop());
-    videoStream = null;
-  }
-  document.getElementById('videoElement').srcObject = null;
-  document.getElementById('systemStatus').textContent = '⏹ الكاميرا متوقفة';
-  document.getElementById('systemStatus').className = 'status-msg info';
-}
+  const heightCm = parseFloat(document.getElementById('heightInputImg').value) || DEFAULT_HEIGHT;
 
-function captureFrame() {
-  const video = document.getElementById('videoElement');
-  if (!video.srcObject) {
-    alert('يرجى تشغيل الكاميرا أولاً');
-    return;
+  // 1) تحليل البكسل (محلي وفوري)
+  const canvasEl = document.getElementById('canvas');
+  canvasEl.width = currentImg.width;
+  canvasEl.height = currentImg.height;
+  canvasEl.style.display = 'block';
+  const ctx = canvasEl.getContext('2d');
+  ctx.drawImage(currentImg, 0, 0);
+  let pixelResult = { count:0, totalWeightKg:0 };
+  try{
+    pixelResult = analyzeFramePixels(canvasEl, heightCm);
+  }catch(err){
+    console.error('Pixel analysis error:', err);
   }
-  
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-  ctx.drawImage(video, 0, 0);
-  
-  // تحليل الإطار الحالي
-  analyzeCanvas();
-}
 
-// ============================================================
-//  تسجيل فيديو 15 ثانية
-// ============================================================
-function startRecording() {
-  if (isRecording) return;
-  
-  const video = document.getElementById('videoElement');
-  if (!video.srcObject) {
-    alert('يرجى تشغيل الكاميرا أولاً');
-    return;
-  }
-  
-  isRecording = true;
-  recordingFrames = [];
-  document.getElementById('recordingIndicator').style.display = 'inline';
-  document.getElementById('systemStatus').textContent = `⏺ جاري التسجيل ${RECORDING_DURATION} ثانية...`;
-  document.getElementById('systemStatus').className = 'status-msg info';
-  
-  // التقاط إطار كل 500ms
-  let frameCount = 0;
-  const maxFrames = RECORDING_DURATION * 2; // 2 إطار في الثانية
-  
-  recordingTimer = setInterval(() => {
-    if (!isRecording) return;
-    
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const video = document.getElementById('videoElement');
-    
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    ctx.drawImage(video, 0, 0);
-    
-    // حفظ بيانات الإطار للتحليل لاحقاً
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-    recordingFrames.push(imageData);
-    frameCount++;
-    
-    document.getElementById('systemStatus').textContent = `⏺ التسجيل: ${Math.round(frameCount/2)}/${RECORDING_DURATION} ثانية`;
-    
-    if (frameCount >= maxFrames) {
-      stopRecording();
+  // 2) تحليل AI عبر Roboflow (قد يفشل لو الشبكة غير متاحة - نستمر بدونه)
+  let aiCount = 0;
+  try{
+    const proxyResult = await callRoboflowViaProxy(currentImageBase64);
+    if(proxyResult.ok){
+      aiCount = extractAICount(proxyResult.data);
     }
-  }, 500);
-}
-
-function stopRecording() {
-  isRecording = false;
-  clearInterval(recordingTimer);
-  document.getElementById('recordingIndicator').style.display = 'none';
-  
-  if (recordingFrames.length > 0) {
-    document.getElementById('systemStatus').textContent = `✅ تم التقاط ${recordingFrames.length} إطار، جاري التحليل...`;
-    document.getElementById('systemStatus').className = 'status-msg info';
-    analyzeFrames(recordingFrames);
-  } else {
-    document.getElementById('systemStatus').textContent = '⚠️ لم يتم التقاط أي إطار';
-    document.getElementById('systemStatus').className = 'status-msg error';
+  }catch(err){
+    console.error('AI analysis error:', err);
   }
-}
 
-// ============================================================
-//  التحليل الأساسي للصورة
-// ============================================================
-async function analyzeImage() {
-  if (isAnalyzing) return;
-  isAnalyzing = true;
-  
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  
-  // إذا كانت الصورة فارغة
-  if (canvas.width === 0 || canvas.height === 0) {
-    alert('يرجى اختيار صورة أو تشغيل الكاميرا أولاً');
-    isAnalyzing = false;
-    return;
-  }
-  
-  showProgress(30);
-  await analyzeCanvasWithAI(canvas);
-  showProgress(100);
-  isAnalyzing = false;
-  hideProgress();
-}
+  setLoading(false);
+  displayResults(aiCount, pixelResult.count, pixelResult.totalWeightKg);
+});
 
-async function analyzeCanvas() {
-  if (isAnalyzing) return;
-  isAnalyzing = true;
-  
-  const canvas = document.getElementById('canvas');
-  showProgress(30);
-  await analyzeCanvasWithAI(canvas);
-  showProgress(100);
-  isAnalyzing = false;
-  hideProgress();
-}
+/* =========================================================
+   وضع الفيديو (تسجيل 15 ثانية من الموبايل + استخراج لقطات)
+   ========================================================= */
+let mediaStream = null;
+let capturedFrames = []; // Array of {canvas, base64, aiCount(optional)}
+const liveVideo = document.getElementById('liveVideo');
+const startCamBtn = document.getElementById('startCamBtn');
+const recordBtn = document.getElementById('recordBtn');
+const analyzeVidBtn = document.getElementById('analyzeVidBtn');
+const recProgressWrap = document.getElementById('recProgressWrap');
+const recProgress = document.getElementById('recProgress');
+const recStatus = document.getElementById('recStatus');
+const frameStrip = document.getElementById('frameStrip');
 
-// ============================================================
-//  التحليل باستخدام الذكاء الاصطناعي
-// ============================================================
-async function analyzeCanvasWithAI(canvas) {
-  try {
-    // 1. الحصول على بيانات الصورة
-    const img = new Image();
-    img.src = canvas.toDataURL();
-    
-    await new Promise(resolve => img.onload = resolve);
-    
-    // 2. تحليل BodyPix لفصل الطيور
-    showProgress(50);
-    const segmentation = await bodyPixNet.segmentPerson(img, {
-      internalResolution: 'high',
-      segmentationThreshold: 0.6,
-      maxDetections: 50
+startCamBtn.addEventListener('click', async ()=>{
+  try{
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} },
+      audio: false
     });
-    
-    // 3. إنشاء قناع للطيور
-    const maskCanvas = document.createElement('canvas');
-    maskCanvas.width = canvas.width;
-    maskCanvas.height = canvas.height;
-    const maskCtx = maskCanvas.getContext('2d');
-    
-    // رسم القناع
-    const maskData = segmentation.data;
-    const imageData = maskCtx.createImageData(canvas.width, canvas.height);
-    const data = imageData.data;
-    
-    let whitePixels = 0;
-    let bodyPixCount = 0;
-    
-    // تحليل القناع للعثور على الطيور
-    // نستخدم تجميع البكسل للتعرف على الطيور الفردية
-    const visited = new Uint8Array(canvas.width * canvas.height);
-    const components = [];
-    
-    for (let y = 0; y < canvas.height; y++) {
-      for (let x = 0; x < canvas.width; x++) {
-        const idx = y * canvas.width + x;
-        const maskIdx = idx * 4;
-        
-        // التحقق من وجود جسم (شخص/طائر)
-        if (maskData[idx] > 0 && !visited[idx]) {
-          // BFS للعثور على مكون متصل
-          const queue = [{x, y}];
-          visited[idx] = 1;
-          let pixelCount = 0;
-          const points = [];
-          
-          while (queue.length > 0) {
-            const p = queue.shift();
-            const pi = p.y * canvas.width + p.x;
-            points.push(p);
-            pixelCount++;
-            
-            // التحقق من الجيران
-            const neighbors = [
-              {x: p.x-1, y: p.y}, {x: p.x+1, y: p.y},
-              {x: p.x, y: p.y-1}, {x: p.x, y: p.y+1}
-            ];
-            
-            for (const n of neighbors) {
-              if (n.x >= 0 && n.x < canvas.width && n.y >= 0 && n.y < canvas.height) {
-                const ni = n.y * canvas.width + n.x;
-                if (!visited[ni] && maskData[ni] > 0) {
-                  visited[ni] = 1;
-                  queue.push(n);
-                }
-              }
-            }
-          }
-          
-          // تصفية المكونات الصغيرة (ضوضاء)
-          if (pixelCount > 100) {
-            components.push({points, pixelCount});
-          }
-        }
-      }
-    }
-    
-    bodyPixCount = components.length;
-    
-    // حساب إجمالي البكسلات البيضاء
-    for (const comp of components) {
-      whitePixels += comp.pixelCount;
-    }
-    
-    showProgress(70);
-    
-    // 4. معالجة OpenCV للحصول على عد أكثر دقة
-    let openCvCount = 0;
-    let openCvPixels = 0;
-    
-    if (cvReady && typeof cv !== 'undefined') {
-      try {
-        // نسخ الصورة إلى OpenCV
-        const src = cv.imread(canvas);
-        const gray = new cv.Mat();
-        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-        
-        // تطبيق عتبة مناسبة للطيور
-        const binary = new cv.Mat();
-        cv.threshold(gray, binary, 80, 255, cv.THRESH_BINARY_INV);
-        
-        // تنقية الصورة
-        const kernel = cv.Mat.ones(5, 5, cv.CV_8U);
-        const opened = new cv.Mat();
-        cv.morphologyEx(binary, opened, cv.MORPH_OPEN, kernel);
-        
-        // العثور على الحدود
-        const contours = new cv.MatVector();
-        const hierarchy = new cv.Mat();
-        cv.findContours(opened, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-        
-        // تصفية الحدود
-        for (let i = 0; i < contours.size(); i++) {
-          const area = cv.contourArea(contours.get(i));
-          if (area > 500) {
-            openCvCount++;
-            openCvPixels += area;
-            cv.drawContours(src, contours, i, [0, 255, 0, 255], 2);
-          }
-        }
-        
-        // عرض النتيجة على Canvas
-        cv.imshow(canvas, src);
-        
-        // تنظيف الذاكرة
-        src.delete(); gray.delete(); binary.delete(); 
-        kernel.delete(); opened.delete(); 
-        contours.delete(); hierarchy.delete();
-        
-      } catch (err) {
-        console.warn('OpenCV error:', err);
-        openCvCount = bodyPixCount;
-        openCvPixels = whitePixels;
-      }
-    } else {
-      openCvCount = bodyPixCount;
-      openCvPixels = whitePixels;
-    }
-    
-    showProgress(90);
-    
-    // 5. حساب الوزن
-    const height = parseFloat(document.getElementById('heightInput').value) || DEFAULT_HEIGHT;
-    const calibration = getCalibration();
-    
-    // حساب الوزن باستخدام البكسلات
-    let estimatedWeight = openCvPixels * PIXEL_TO_WEIGHT * Math.pow(height / DEFAULT_HEIGHT, 2);
-    
-    // تطبيق المعايرة (بالجرامات)
-    estimatedWeight = estimatedWeight + (calibration / 1000);
-    
-    // منع القيم السالبة
-    if (estimatedWeight < 0) estimatedWeight = 0;
-    
-    // حساب متوسط العد
-    const finalCount = Math.round((bodyPixCount + openCvCount) / 2);
-    
-    // متوسط الوزن لكل طائر
-    const avgWeightPerBird = finalCount > 0 ? estimatedWeight / finalCount : 0;
-    
-    // عرض النتيجة
-    displayResults(finalCount, estimatedWeight, avgWeightPerBird, bodyPixCount, openCvCount, height, calibration);
-    
-    showProgress(100);
-    
-  } catch (err) {
-    console.error('Analysis error:', err);
-    document.getElementById('result').innerHTML = `
-      <div class="status-msg error">❌ خطأ في التحليل: ${err.message}</div>
-    `;
+    liveVideo.srcObject = mediaStream;
+    liveVideo.style.display = 'block';
+    recordBtn.disabled = false;
+    recStatus.textContent = '✅ الكاميرا جاهزة - اضغط تسجيل';
+  }catch(err){
+    console.error(err);
+    alert('⚠️ تعذر الوصول للكاميرا: ' + err.message + '\nتأكد من السماح بالوصول للكاميرا، ومن استخدام https.');
   }
-}
+});
 
-// ============================================================
-//  تحليل إطارات الفيديو المتعددة
-// ============================================================
-async function analyzeFrames(frames) {
-  showProgress(10);
-  const results = [];
-  
-  for (let i = 0; i < frames.length; i++) {
-    const img = new Image();
-    img.src = frames[i];
-    await new Promise(resolve => img.onload = resolve);
-    
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = img.width;
-    canvas.height = img.height;
+recordBtn.addEventListener('click', async ()=>{
+  if(!mediaStream) return;
+  recordBtn.disabled = true;
+  analyzeVidBtn.disabled = true;
+  capturedFrames = [];
+  frameStrip.innerHTML = '';
+  recProgressWrap.style.display = 'block';
+
+  const DURATION_MS = 15000;
+  const FRAME_COUNT = 6; // لقطة كل ~2.5 ثانية
+  const INTERVAL = DURATION_MS / FRAME_COUNT;
+
+  const recCanvas = document.getElementById('recordCanvas');
+  const rctx = recCanvas.getContext('2d');
+
+  for(let i=0;i<FRAME_COUNT;i++){
+    await new Promise(r=>setTimeout(r, INTERVAL));
+    recCanvas.width = liveVideo.videoWidth;
+    recCanvas.height = liveVideo.videoHeight;
+    rctx.drawImage(liveVideo, 0, 0, recCanvas.width, recCanvas.height);
+    const dataUrl = recCanvas.toDataURL('image/jpeg', 0.85);
+    capturedFrames.push({ dataUrl, base64: dataUrl.split(',')[1] });
+
+    const thumb = document.createElement('img');
+    thumb.src = dataUrl;
+    frameStrip.appendChild(thumb);
+
+    const pct = Math.round(((i+1)/FRAME_COUNT)*100);
+    recProgress.style.width = pct + '%';
+    recStatus.textContent = `📸 تم التقاط ${i+1}/${FRAME_COUNT} لقطات...`;
+  }
+
+  recStatus.textContent = `✅ تم التقاط ${FRAME_COUNT} لقطات خلال 15 ثانية. اضغط "حلّل" للمتابعة.`;
+  recordBtn.disabled = false;
+  analyzeVidBtn.disabled = capturedFrames.length === 0;
+
+  // إيقاف الكاميرا لتوفير البطارية (يمكن للمستخدم تشغيلها من جديد)
+  if(mediaStream){
+    mediaStream.getTracks().forEach(t=>t.stop());
+    mediaStream = null;
+  }
+});
+
+analyzeVidBtn.addEventListener('click', async ()=>{
+  if(capturedFrames.length === 0) return;
+  setLoading(true, `جاري تحليل ${capturedFrames.length} لقطات (AI + بكسل)...`);
+  document.getElementById('resultBox').style.display = 'none';
+
+  const heightCm = parseFloat(document.getElementById('heightInputVid').value) || DEFAULT_HEIGHT;
+  const canvasEl = document.getElementById('canvas');
+  canvasEl.style.display = 'block';
+
+  const pixelCounts = [];
+  const pixelWeights = [];
+  const aiCounts = [];
+
+  for(let i=0;i<capturedFrames.length;i++){
+    document.getElementById('loadingText').textContent =
+      `جاري تحليل اللقطة ${i+1}/${capturedFrames.length}...`;
+
+    const frame = capturedFrames[i];
+    const img = await loadImageFromDataUrl(frame.dataUrl);
+    canvasEl.width = img.width;
+    canvasEl.height = img.height;
+    const ctx = canvasEl.getContext('2d');
     ctx.drawImage(img, 0, 0);
-    
-    try {
-      // تحليل سريع لكل إطار
-      const segmentation = await bodyPixNet.segmentPerson(img, {
-        internalResolution: 'medium',
-        segmentationThreshold: 0.6,
-        maxDetections: 50
-      });
-      
-      // عد بسيط من BodyPix
-      let count = 0;
-      const maskData = segmentation.data;
-      const visited = new Uint8Array(canvas.width * canvas.height);
-      
-      for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-          const idx = y * canvas.width + x;
-          if (maskData[idx] > 0 && !visited[idx]) {
-            // BFS سريع
-            const queue = [{x, y}];
-            visited[idx] = 1;
-            let size = 0;
-            
-            while (queue.length > 0 && size < 5000) {
-              const p = queue.shift();
-              size++;
-              const neighbors = [
-                {x: p.x-1, y: p.y}, {x: p.x+1, y: p.y},
-                {x: p.x, y: p.y-1}, {x: p.x, y: p.y+1}
-              ];
-              for (const n of neighbors) {
-                if (n.x >= 0 && n.x < canvas.width && n.y >= 0 && n.y < canvas.height) {
-                  const ni = n.y * canvas.width + n.x;
-                  if (!visited[ni] && maskData[ni] > 0) {
-                    visited[ni] = 1;
-                    queue.push(n);
-                  }
-                }
-              }
-            }
-            
-            if (size > 100) count++;
-          }
-        }
+
+    try{
+      const pr = analyzeFramePixels(canvasEl, heightCm);
+      pixelCounts.push(pr.count);
+      pixelWeights.push(pr.totalWeightKg);
+    }catch(err){ console.error('frame pixel error', err); }
+
+    try{
+      const proxyResult = await callRoboflowViaProxy(frame.base64);
+      if(proxyResult.ok){
+        aiCounts.push(extractAICount(proxyResult.data));
       }
-      
-      results.push(count);
-      
-      // تحديث التقدم
-      const progress = 10 + (i / frames.length) * 70;
-      showProgress(progress);
-      
-    } catch (err) {
-      console.warn('Frame analysis error:', err);
-    }
+    }catch(err){ console.error('frame AI error', err); }
   }
-  
-  // حساب المتوسط من النتائج
-  if (results.length > 0) {
-    // إزالة القيم المتطرفة
-    results.sort((a, b) => a - b);
-    const trimmed = results.slice(Math.floor(results.length * 0.1), Math.floor(results.length * 0.9));
-    const avgCount = trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
-    
-    // تحليل الإطار الأكثر تمثيلاً
-    const medianIndex = Math.floor(trimmed.length / 2);
-    const representativeFrame = frames[results.indexOf(trimmed[medianIndex] || results[Math.floor(results.length/2)])];
-    
-    if (representativeFrame) {
-      const img = new Image();
-      img.src = representativeFrame;
-      await new Promise(resolve => img.onload = resolve);
-      
-      const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      
-      // تحليل متعمق للإطار الممثل
-      await analyzeCanvasWithAI(canvas);
-    } else {
-      // استخدام المتوسط فقط
-      const height = parseFloat(document.getElementById('heightInput').value) || DEFAULT_HEIGHT;
-      const calibration = getCalibration();
-      
-      // تقدير الوزن من المتوسط
-      const estimatedWeight = avgCount * 0.8 + (calibration / 1000);
-      
-      displayResults(Math.round(avgCount), Math.max(0, estimatedWeight), 
-                     estimatedWeight / Math.max(1, avgCount), 
-                     Math.round(avgCount), Math.round(avgCount), height, calibration);
-    }
-  } else {
-    document.getElementById('result').innerHTML = `
-      <div class="status-msg error">❌ لم يتم العثور على طيور في الفيديو</div>
-    `;
-  }
-  
-  hideProgress();
-}
 
-// ============================================================
-//  عرض النتائج
-// ============================================================
-function displayResults(count, weight, avgWeight, bodyPixCount, openCvCount, height, calibration) {
-  const resultDiv = document.getElementById('result');
-  
-  resultDiv.innerHTML = `
-    <div class="result-grid">
-      <div class="result-item">
-        <div class="label">🐔 عدد الفراخ</div>
-        <div class="value">${count}</div>
-        <div style="font-size:12px; color:#888;">(BodyPix: ${bodyPixCount} | CV: ${openCvCount})</div>
-      </div>
-      <div class="result-item">
-        <div class="label">⚖️ الوزن الكلي</div>
-        <div class="value gold">${weight.toFixed(2)} كجم</div>
-        <div style="font-size:12px; color:#888;">${(weight * 1000).toFixed(0)} جم</div>
-      </div>
-      <div class="result-item">
-        <div class="label">📊 متوسط الوزن</div>
-        <div class="value">${avgWeight.toFixed(2)} كجم</div>
-        <div style="font-size:12px; color:#888;">${(avgWeight * 1000).toFixed(0)} جم/طائر</div>
-      </div>
-    </div>
-    <div style="font-size:13px; color:#888; margin-top:10px;">
-      📏 الارتفاع: ${height} سم | 
-      🔧 المعايرة: ${calibration > 0 ? '+' : ''}${calibration} جم
-    </div>
-    <div style="font-size:13px; color:#555; margin-top:5px;">
-      🧠 BodyPix: ${bodyPixCount} | OpenCV: ${openCvCount} | المتوسط النهائي: ${count}
-    </div>
-  `;
-  
-  // إضافة رسالة إضافية حسب النتائج
-  if (count === 0) {
-    resultDiv.innerHTML += `<div class="status-msg error">⚠️ لم يتم اكتشاف أي طيور. حاول تغيير زاوية التصوير أو الإضاءة</div>`;
-  } else if (count < 3) {
-    resultDiv.innerHTML += `<div class="status-msg info">🐥 مجموعة صغيرة من الطيور</div>`;
-  } else if (count < 10) {
-    resultDiv.innerHTML += `<div class="status-msg success">🐔🐔 مزرعة متوسطة</div>`;
-  } else {
-    resultDiv.innerHTML += `<div class="status-msg success">🎉 مزرعة كبيرة! عدد ممتاز</div>`;
-  }
-}
+  setLoading(false);
 
-// ============================================================
-//  أدوات مساعدة
-// ============================================================
-function showProgress(value) {
-  const bar = document.getElementById('progressBar');
-  const fill = document.getElementById('progressFill');
-  bar.style.display = 'block';
-  fill.style.width = Math.min(100, value) + '%';
-}
+  const finalPixelCount = median(pixelCounts) || 0;
+  const finalPixelWeight = median(pixelWeights) || 0;
+  const finalAICount = aiCounts.length ? median(aiCounts) : 0;
 
-function hideProgress() {
-  setTimeout(() => {
-    document.getElementById('progressBar').style.display = 'none';
-    document.getElementById('progressFill').style.width = '0%';
-  }, 500);
-}
-
-function clearAllData() {
-  if (confirm('هل أنت متأكد من مسح جميع البيانات والمعايرة؟')) {
-    localStorage.clear();
-    document.getElementById('calibrationValue').value = '0';
-    document.getElementById('calibrationStatus').textContent = '🗑 تم مسح جميع البيانات';
-    updateCalibrationDisplay();
-    document.getElementById('result').innerHTML = '🗑 تم مسح البيانات';
-  }
-}
-
-// ============================================================
-//  سحب وإفلات الصور
-// ============================================================
-const uploadArea = document.getElementById('uploadArea');
-uploadArea.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  uploadArea.classList.add('dragover');
+  displayResults(Math.round(finalAICount), Math.round(finalPixelCount), finalPixelWeight);
 });
 
-uploadArea.addEventListener('dragleave', () => {
-  uploadArea.classList.remove('dragover');
-});
-
-uploadArea.addEventListener('drop', (e) => {
-  e.preventDefault();
-  uploadArea.classList.remove('dragover');
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    const file = files[0];
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = function(ev) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.getElementById('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-          document.getElementById('result').innerHTML = '✅ الصورة جاهزة للتحليل';
-          document.getElementById('result').className = 'status-msg success';
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    } else {
-      alert('يرجى إسقاط صورة فقط');
-    }
-  }
-});
-
-// ============================================================
-//  التهيئة
-// ============================================================
-updateCalibrationDisplay();
-loadModels();
-
-// عرض حالة OpenCV
-document.getElementById('systemStatus').textContent = '⏳ جاري تحميل OpenCV...';
-
-// تحميل OpenCV
-function checkOpenCV() {
-  if (typeof cv !== 'undefined') {
-    cvReady = true;
-    document.getElementById('systemStatus').textContent = '✅ جميع النماذج جاهزة';
-    document.getElementById('systemStatus').className = 'status-msg success';
-  } else {
-    setTimeout(checkOpenCV, 500);
-  }
+function median(arr){
+  if(!arr || arr.length===0) return 0;
+  const s = [...arr].sort((a,b)=>a-b);
+  const mid = Math.floor(s.length/2);
+  return s.length % 2 !== 0 ? s[mid] : (s[mid-1]+s[mid])/2;
+}
+function loadImageFromDataUrl(dataUrl){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(img);
+    img.src = dataUrl;
+  });
 }
 
-setTimeout(checkOpenCV, 1000);
+/* =========================================================
+   المعايرة - واجهة المستخدم
+   ========================================================= */
+document.getElementById('calcCalibBtn').addEventListener('click', ()=>{
+  const actual = parseFloat(document.getElementById('actualWeightInput').value);
+  const predicted = parseFloat(document.getElementById('predictedWeightInput').value);
+  if(isNaN(actual) || isNaN(predicted) || predicted <= 0){
+    alert('من فضلك أدخل قيمتين صحيحتين (الوزن الفعلي ووزن الكود)');
+    return;
+  }
+  addCalibSample(actual, predicted);
+  recalcCalibrationFromSamples();
+  alert('✅ تم حفظ المعايرة بنجاح. سيتم تطبيقها تلقائياً على كل النتائج القادمة.');
+  document.getElementById('actualWeightInput').value = '';
+  document.getElementById('predictedWeightInput').value = '';
+});
 
-console.log('🐔 النظام المتكامل لتقييم الفراخ - جاهز');
-console.log('📞 للتواصل: 01119935714');
+document.getElementById('resetCalibBtn').addEventListener('click', ()=>{
+  if(!confirm('هل أنت متأكد من مسح كل بيانات المعايرة؟')) return;
+  localStorage.removeItem(LS_KEYS.offset);
+  localStorage.removeItem(LS_KEYS.factor);
+  localStorage.removeItem(LS_KEYS.calibSamples);
+  renderCalibValues();
+});
+
+document.getElementById('useForCalibBtn').addEventListener('click', ()=>{
+  if(!window.__lastResult){ alert('لا توجد نتيجة محللة بعد.'); return; }
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('[data-mode="calib"]').classList.add('active');
+  Object.values(panels).forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('panel-calib').classList.remove('hidden');
+  document.getElementById('predictedWeightInput').value = window.__lastResult.calibratedWeight.toFixed(3);
+  document.getElementById('actualWeightInput').focus();
+});
+
+/* =========================================================
+   السجل
+   ========================================================= */
+document.getElementById('saveHistoryBtn').addEventListener('click', ()=>{
+  if(!window.__lastResult){ alert('لا توجد نتيجة لحفظها.'); return; }
+  saveHistoryEntry(window.__lastResult);
+  alert('✅ تم الحفظ في السجل.');
+});
+document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
+  if(!confirm('مسح كل السجل؟')) return;
+  clearHistory();
+});
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  const h = getHistory();
+  if(h.length === 0){
+    list.innerHTML = '<div class="status">لا يوجد سجل محفوظ بعد.</div>';
+    return;
+  }
+  list.innerHTML = h.map((item, idx)=>{
+    const date = new Date(item.ts).toLocaleString('ar-EG');
+    return `<div class="history-item">
+      <span>📅 ${date}<br>عدد: ${item.finalCount} | وزن: ${item.calibratedWeight.toFixed(3)} كجم</span>
+      <button onclick="deleteHistoryItem(${idx})">حذف</button>
+    </div>`;
+  }).join('');
+}
+function deleteHistoryItem(idx){
+  const h = getHistory();
+  h.splice(idx,1);
+  localStorage.setItem(LS_KEYS.history, JSON.stringify(h));
+  renderHistory();
+}
+
+/* =========================================================
+   أدوات مساعدة
+   ========================================================= */
+function setLoading(show, text){
+  document.getElementById('loadingBox').style.display = show ? 'flex' : 'none';
+  if(text) document.getElementById('loadingText').textContent = text;
+}
+
+/* =========================================================
+   تشغيل أولي
+   ========================================================= */
+renderCalibValues();
+renderHistory();
 </script>
-
 </body>
 </html>
